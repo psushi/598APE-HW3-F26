@@ -71,7 +71,24 @@ static void render(char *filename, const int N) {
   free(pixels);
 }
 
-static void stabilize(const int N) {
+static void find_ranges(const int N, int *first, int *last) {
+  const int64_t radius = N / 2;
+  for (int i = 0; i < N; ++i) {
+    first[i] = N;
+    last[i] = -1;
+    const int64_t y = i - radius;
+    for (int j = 0; j <= MAX(i, N - 1 - i); ++j) {
+      const int64_t x = j - radius;
+      if (x * x + y * y <= radius * radius) {
+        if (first[i] == N)
+          first[i] = j;
+        last[i] = j;
+      }
+    }
+  }
+}
+
+static void stabilize(const int N, const int *first, const int *last) {
   const int folded = N % 2;
   const int last_row = folded ? N / 2 : N - 1;
   int changed = 0;
@@ -82,22 +99,19 @@ static void stabilize(const int N) {
       int *above = i > 0 ? grid[i - 1] : NULL;
       int *below = i < last_row ? grid[i + 1] : NULL;
       const int below_grains = folded && i == last_row - 1 ? 2 : 1;
-      for (int j = 0; j <= MAX(i, N - 1 - i); ++j) {
-        if ((i - N / 2) * (i - N / 2) + (j - N / 2) * (j - N / 2) <=
-            (N / 2) * (N / 2)) {
-          if (row[j] < 4)
-            continue;
-          changed = 1; // topple it
-          row[j] -= 4;
-          if (i > 0)
-            above[j]++;
-          if (j > 0)
-            row[j - 1]++;
-          if (i < last_row)
-            below[j] += below_grains;
-          if (j < N - 1)
-            row[j + 1]++;
-        }
+      for (int j = first[i]; j <= last[i]; ++j) {
+        if (row[j] < 4)
+          continue;
+        changed = 1; // topple it
+        row[j] -= 4;
+        if (i > 0)
+          above[j]++;
+        if (j > 0)
+          row[j - 1]++;
+        if (i < last_row)
+          below[j] += below_grains;
+        if (j < N - 1)
+          row[j + 1]++;
       }
     }
   } while (changed);
@@ -108,18 +122,25 @@ static void stabilize(const int N) {
 }
 
 void find_identity(const int N) {
+  int *first = malloc(N * sizeof(int));
+  int *last = malloc(N * sizeof(int));
+  if (!first || !last)
+    die("malloc failed for row ranges");
+  find_ranges(N, first, last);
   for (int i = 0; i < N; ++i) {
     for (int j = 0; j < N; ++j) {
       grid[i][j] = 6;
     }
   }
-  stabilize(N);
+  stabilize(N, first, last);
   for (int i = 0; i < N; ++i) {
     for (int j = 0; j < N; ++j) {
       grid[i][j] = 6 - grid[i][j];
     }
   }
-  stabilize(N);
+  stabilize(N, first, last);
+  free(first);
+  free(last);
 }
 
 int main(int argc, char **argv) {
