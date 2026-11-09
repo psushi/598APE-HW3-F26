@@ -91,30 +91,40 @@ static void find_ranges(const int N, int *first, int *last) {
 static void stabilize(const int N, const int *first, const int *last) {
   const int folded = N % 2;
   const int last_row = folded ? N / 2 : N - 1;
+  const size_t stride = (size_t)N + 2;
+  unsigned char *topples = calloc(((size_t)last_row + 3) * stride, 1);
+  if (!topples)
+    die("malloc failed for toppling flags");
   int changed = 0;
-  do {
-    changed = 0;
-    for (int i = 0; i <= last_row; ++i) {
-      int *row = grid[i];
-      int *above = i > 0 ? grid[i - 1] : NULL;
-      int *below = i < last_row ? grid[i + 1] : NULL;
-      const int below_grains = folded && i == last_row - 1 ? 2 : 1;
-      for (int j = first[i]; j <= last[i]; ++j) {
-        if (row[j] < 4)
-          continue;
-        changed = 1; // topple it
-        row[j] -= 4;
-        if (i > 0)
-          above[j]++;
-        if (j > 0)
-          row[j - 1]++;
-        if (i < last_row)
-          below[j] += below_grains;
-        if (j < N - 1)
-          row[j + 1]++;
+#pragma omp parallel
+  {
+    for (;;) {
+#pragma omp single
+      changed = 0;
+#pragma omp for schedule(static) reduction(| : changed)
+      for (int i = 0; i <= last_row; ++i) {
+        unsigned char *sent = topples + (size_t)(i + 1) * stride + 1;
+        for (int j = first[i]; j <= last[i]; ++j) {
+          sent[j] = grid[i][j] >= 4;
+          changed |= sent[j];
+        }
+      }
+      if (!changed)
+        break;
+#pragma omp for schedule(static)
+      for (int i = 0; i <= last_row; ++i) {
+        int *row = grid[i];
+        const unsigned char *sent = topples + (size_t)(i + 1) * stride + 1;
+        const unsigned char *above = sent - stride;
+        const unsigned char *below = sent + stride;
+        const int above_grains = folded && i == last_row ? 2 : 1;
+        for (int j = 0; j < N; ++j)
+          row[j] += above_grains * above[j] + below[j] + sent[j - 1]
+                    + sent[j + 1] - 4 * sent[j];
       }
     }
-  } while (changed);
+  }
+  free(topples);
   if (folded) {
     for (int i = 0; i < last_row; ++i)
       memcpy(grid[N - 1 - i], grid[i], N * sizeof(int));
