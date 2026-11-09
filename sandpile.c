@@ -18,11 +18,10 @@ static void die(const char *s) {
   exit(1);
 }
 
-int N = 801;
 int **grid;
 
 // you can also use this function to debug print your sandpile
-static void render(char *filename) {
+static void render(char *filename, const int N) {
   int chan = 3;
   unsigned char *pixels = (unsigned char *)malloc(N * N * chan * sizeof(char));
   int stride = N * chan;
@@ -72,7 +71,7 @@ static void render(char *filename) {
   free(pixels);
 }
 
-static void stabilize() {
+static void stabilize(const int N) {
   int changed = 0;
   do {
     changed = 0;
@@ -98,19 +97,19 @@ static void stabilize() {
   } while (changed);
 }
 
-void find_identity() {
+void find_identity(const int N) {
   for (int i = 0; i < N; ++i) {
     for (int j = 0; j < N; ++j) {
       grid[i][j] = 6;
     }
   }
-  stabilize();
+  stabilize(N);
   for (int i = 0; i < N; ++i) {
     for (int j = 0; j < N; ++j) {
       grid[i][j] = 6 - grid[i][j];
     }
   }
-  stabilize();
+  stabilize(N);
 }
 
 int main(int argc, char **argv) {
@@ -123,16 +122,16 @@ int main(int argc, char **argv) {
   if (errno || argv[1][0] < '0' || argv[1][0] > '9' || *end || !parsed ||
       parsed > INT32_MAX)
     die("grid size must be a positive int");
-  N = (int)parsed;
+  const int N = (int)parsed;
 
   grid = (int **)malloc(N * sizeof(int *));
   for (int i = 0; i < N; ++i) {
     grid[i] = (int *)malloc(N * sizeof(int));
   }
 
-  find_identity();
+  find_identity(N);
 
-  render("identity.png");
+  render("identity.png", N);
   for (int i = 0; i < N; ++i) {
     free(grid[i]);
   }
