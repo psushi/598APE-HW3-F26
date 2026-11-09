@@ -72,29 +72,39 @@ static void render(char *filename, const int N) {
 }
 
 static void stabilize(const int N) {
+  const int folded = N % 2;
+  const int last_row = folded ? N / 2 : N - 1;
   int changed = 0;
   do {
     changed = 0;
-    for (int i = 0; i < N; ++i) {
+    for (int i = 0; i <= last_row; ++i) {
+      int *row = grid[i];
+      int *above = i > 0 ? grid[i - 1] : NULL;
+      int *below = i < last_row ? grid[i + 1] : NULL;
+      const int below_grains = folded && i == last_row - 1 ? 2 : 1;
       for (int j = 0; j <= MAX(i, N - 1 - i); ++j) {
         if ((i - N / 2) * (i - N / 2) + (j - N / 2) * (j - N / 2) <=
             (N / 2) * (N / 2)) {
-          if (grid[i][j] < 4)
+          if (row[j] < 4)
             continue;
           changed = 1; // topple it
-          grid[i][j] -= 4;
+          row[j] -= 4;
           if (i > 0)
-            grid[i - 1][j]++;
+            above[j]++;
           if (j > 0)
-            grid[i][j - 1]++;
-          if (i < N - 1)
-            grid[i + 1][j]++;
+            row[j - 1]++;
+          if (i < last_row)
+            below[j] += below_grains;
           if (j < N - 1)
-            grid[i][j + 1]++;
+            row[j + 1]++;
         }
       }
     }
   } while (changed);
+  if (folded) {
+    for (int i = 0; i < last_row; ++i)
+      memcpy(grid[N - 1 - i], grid[i], N * sizeof(int));
+  }
 }
 
 void find_identity(const int N) {
