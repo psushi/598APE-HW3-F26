@@ -1,45 +1,55 @@
 # CS598APE HW3
 
-This repository contains code for homework 3 of CS598APE. It is relatively
-simple in comparison to HW1 and HW2 to ensure you have enough time to work on
-the course project. 
+Compute the sandpile identity on a Pacman-shaped grid. The program uses four
+threads and saves `identity.png`.
 
-`sandpile.c` contains the implementation of finding the identity element of a 2D
-abelian sandpile.
+## Build and run
 
-![Identity sandpile on a 1001x1001 pacman grid](identity-ref.png)
+With Docker running, from the repository root:
 
-*Identity sandpile on a 1001x1001 pacman grid*
+```bash
+./dockerbuild.sh
+./dockerrun.sh
+```
 
-
-To compile the program, run:
+Inside the container:
 
 ```bash
 make all
-```
-
-To clean existing build artifacts, run:
-
-```bash
-make clean
-```
-
-Usage (after compiling):
-
-```bash
-./sandpile.exe <N> 
-```
-
-where `N` is the grid size
-
-Consider speeding up the generation of this 1001x1001 identity sandpile (which
-takes approximately ~3m 40s on my local laptop under the default setup)
-
-```bash
 ./sandpile.exe 1001
 ```
 
-For an optional, ungraded challenge, see how large a sandpile you can compute
-on the course VMs and report the grid size and runtime. There is no prescribed
-upper limit on `N` for this challenge.
+## Benchmark
 
+Two warmups and five measured runs:
+
+```bash
+python3 scripts/runtimes.py 1001
+```
+
+Use `401` for a shorter run.
+
+## Compare with the original
+
+Inside the container:
+
+```bash
+mkdir -p artifacts
+git show 15fe837:sandpile.c > artifacts/original.c
+gcc artifacts/original.c -I. -O3 -lm -g -Werror -o artifacts/original.exe
+python3 scripts/runtimes.py 1001 --binary artifacts/original.exe --warmups 0 --runs 1
+cp identity.png artifacts/original.png
+python3 scripts/runtimes.py 1001 --reference artifacts/original.png
+```
+
+The original takes several minutes. Increase `--warmups` and `--runs` for
+repeated baseline measurements.
+
+## Profile
+
+```bash
+mkdir -p artifacts/profile
+perf record -e cpu-clock:u -F 997 -o artifacts/profile/perf.data -- ./sandpile.exe 401
+perf report --stdio -i artifacts/profile/perf.data
+perf annotate --stdio --source -i artifacts/profile/perf.data
+```

@@ -18,3 +18,10 @@
 
 # Compiled handouts
 /handout/*.pdf
+
+# Local builds and profiling results
+/*.exe
+/identity.png
+/artifacts/
+/perf.data*
+/OPTIMIZATION_LOG.md

@@ -96,7 +96,7 @@ static void stabilize(const int N, const int *first, const int *last) {
   if (!topples)
     die("malloc failed for toppling flags");
   int changed = 0;
-#pragma omp parallel
+#pragma omp parallel num_threads(4)
   {
     for (;;) {
 #pragma omp single
